@@ -33,6 +33,8 @@ button{font:inherit;cursor:pointer;color:inherit}
 .cat{background:var(--jaune-clair);border:2px solid var(--texte);border-radius:18px;padding:16px;min-height:140px;text-align:left}
 .cat .i{font-size:42px;display:block}.cat .t{font-size:19px;font-weight:900;display:block;margin-top:8px}.cat .s{font-size:13px;color:var(--gris);display:block;margin-top:4px}
 .pied{text-align:center;color:var(--gris);font-size:12px;padding:8px 16px 28px}
+.action-proposer{display:block;width:calc(100% - 32px);margin:0 16px 8px;padding:15px;border:2px solid var(--texte);border-radius:14px;background:var(--fond);font-weight:850;text-align:center}
+.form-proposer{padding:20px 16px 40px}.form-proposer h2{margin:0 0 6px;font-size:24px}.form-proposer p{color:var(--gris);margin:0 0 18px;line-height:1.45}.champ{display:block;margin:14px 0}.champ span{display:block;font-weight:750;margin-bottom:6px}.champ input,.champ select,.champ textarea{width:100%;padding:14px;border:1.5px solid var(--bord);border-radius:12px;background:var(--fond);color:var(--texte);font:inherit}.champ textarea{min-height:95px;resize:vertical}.btn-principal{width:100%;padding:15px;border:0;border-radius:14px;background:var(--jaune);color:#000;font-weight:900;font-size:16px;margin-top:10px}.role-info{margin:12px 16px;padding:11px 13px;background:var(--jaune-clair);border-radius:12px;font-size:13px;font-weight:750;color:var(--texte)}
 .bandeau{background:#000;padding:14px 16px;display:flex;align-items:center;gap:12px}
 .retour{width:40px;height:40px;border-radius:50%;border:0;background:var(--jaune);color:#000;font-size:20px;font-weight:900;flex:none}
 .bandeau h2{margin:0;color:#fff;font-size:20px;font-weight:900}.bandeau small{color:var(--jaune);font-size:13px}
@@ -119,7 +121,7 @@ var P=[
 ["p2","plombier","Plombier Pro Bastos","Bastos","🚰",1.8,18,"Déplacement 3 000 FCFA",3000,4.8,142,1,"DISPONIBLE",1,"237670000011","Installation sanitaire, chauffe-eau, urgences 24h/24.",[["Olivia",5,"Très pro, matériel de qualité."]]]
 ].map(function(a){return{id:a[0],cat:a[1],nom:a[2],q:a[3],e:a[4],km:a[5],min:a[6],px:a[7],prix:a[8],note:a[9],nb:a[10],ouvert:!!a[11],statut:a[12],dom:!!a[13],tel:a[14],desc:a[15],avis:a[16]}});
 
-var etat={vue:"accueil",requete:"",cat:null,filtre:"proche",fiche:null,pos:"📍 Yaoundé",merci:false};
+var etat={vue:"accueil",role:null,requete:"",cat:null,filtre:"proche",fiche:null,pos:"📍 Yaoundé",merci:false,offre:null};
 var app=document.getElementById("app");
 
 // Sécurise le texte tapé par l’utilisateur avant de l’afficher
@@ -132,6 +134,7 @@ return '<div class="haut"><div class="logo">Je <b>Falla</b></div><button class="
 '<div class="jaune"><h1>Ça urge ? On trouve.</h1><p>Solutions à moins de 15 minutes autour de toi</p>'+
 '<div class="recherche"><input id="q" placeholder="Je falla... ex: poulet braisé, pressing, plombier" enterkeyhint="search"><button id="go" aria-label="Chercher">🔍</button></div></div>'+
 '<div class="grille">'+CATS.map(function(c){return '<button class="cat" data-cat="'+c.id+'"><span class="i">'+c.i+'</span><span class="t">'+c.t+'</span><span class="s">'+c.s+'</span></button>'}).join("")+'</div>'+
+'<button class="action-proposer" id="ouvrir-proposition">＋ Je propose un service</button>'+
 '<div class="pied">Fait à Yaoundé · léger, même avec une connexion lente</div>'}
 
 function liste(){
@@ -142,7 +145,7 @@ l=l.slice().sort(etat.filtre==="prix"?function(a,b){return (a.prix||1e9)-(b.prix
 function resultats(){
 var c=CATS.filter(function(x){return x.id===etat.cat})[0],l=liste();
 var F=[["ouvert","Ouvert maintenant"],["prix","Moins cher"],["proche","Le plus proche"]];
-return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>'+(c?c.i+" "+c.t:"« "+esc(etat.requete)+" »")+'</h2><small>'+l.length+' solution(s) près de toi</small></div></div>'+
+return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>'+(c?c.i+" "+c.t:"« "+esc(etat.requete)+" »")+'</h2><small>Mode client · '+l.length+' solution(s) près de toi</small></div></div>'+
 '<div class="filtres">'+F.map(function(f){return '<button class="pastille'+(etat.filtre===f[0]?" on":"")+'" data-f="'+f[0]+'">'+f[1]+'</button>'}).join("")+'</div><div class="liste">'+
 (l.length?l.map(function(p){return '<button class="res" data-p="'+p.id+'"><div class="av">'+p.e+'</div><div><div class="n">'+p.nom+'</div><div class="m">'+(p.dom?"à domicile":p.km+" km")+' · '+p.min+' min · '+p.q+'</div><div class="p">'+p.px+' · '+p.note.toFixed(1)+'★</div><span class="badge '+(p.ouvert?"ok":"ko")+'">'+p.statut+'</span></div></button>'}).join(""):'<div class="vide"><div style="font-size:40px">🤷🏾</div>Rien trouvé pour « '+esc(etat.requete)+' ». Essaie « pressing », « plombier » ou « poulet braisé ».</div>')+'</div>'}
 
@@ -160,24 +163,49 @@ p.avis.map(function(a){return '<div class="avis"><div class="ini">'+a[0].charAt(
 '<div class="barre"><div class="prixbas"><small>'+(p.prix?"à partir de":"")+'</small><b>'+(p.prix?fmt(p.prix)+" FCFA":"Sur place")+'</b></div><button id="cmd">Commander</button></div>'+
 (etat.merci?'<div class="merci">✅ Commande envoyée. '+p.nom+' arrive dans environ '+p.min+' minutes.</div>':"")}
 
+function proposer(){
+return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>＋ Proposer un service</h2><small>Mode prestataire activé pour cette action</small></div></div>'+
+'<div class="role-info">Tu gardes le même compte. Si tu recherches ensuite un service, tu repasseras automatiquement en mode client.</div>'+
+'<form class="form-proposer" id="form-proposer"><h2>Présente ton service</h2><p>Décris ce que tu proposes afin que les personnes puissent te trouver.</p>'+
+'<label class="champ"><span>Nom du service</span><input name="nom" required maxlength="70" placeholder="Ex. Plomberie à domicile"></label>'+
+'<label class="champ"><span>Catégorie</span><select name="categorie" required><option value="">Choisir une catégorie</option><option>Plomberie</option><option>Maçonnerie</option><option>Électricité</option><option>Restauration</option><option>Transport</option><option>Ménage et nettoyage</option><option>Autre</option></select></label>'+
+'<label class="champ"><span>Ta ville / ton quartier</span><input name="quartier" required maxlength="80" placeholder="Ex. Yaoundé, Mendong"></label>'+
+'<label class="champ"><span>Description</span><textarea name="description" required maxlength="500" placeholder="Décris ton expérience et le service proposé"></textarea></label>'+
+'<label class="champ"><span>Prix indicatif (FCFA, facultatif)</span><input name="prix" type="number" min="0" placeholder="Ex. 5000"></label>'+
+'<label class="champ"><span>Numéro de téléphone</span><input name="telephone" type="tel" required placeholder="Ex. 6XXXXXXXX"></label>'+
+'<button class="btn-principal" type="submit">Continuer</button></form>'}
+
+function confirmationOffre(){
+var o=etat.offre;
+return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>Proposition préparée</h2><small>Mode prestataire</small></div></div>'+
+'<div class="form-proposer"><div style="font-size:42px">✅</div><h2>'+esc(o.nom)+'</h2><p><b>'+esc(o.categorie)+'</b> · '+esc(o.quartier)+'</p><p>'+esc(o.description)+'</p><p>'+(o.prix?fmt(Number(o.prix))+ ' FCFA':'Prix à convenir')+' · '+esc(o.telephone)+'</p>'+
+'<div class="role-info">Ceci est une prévisualisation sur cette version de test. Ton offre n’est pas encore publiée pour les autres utilisateurs : il faudra connecter Je Falla à une base de données et créer les comptes prestataires.</div>'+
+'<button class="btn-principal" id="retour-accueil">Retour à l’accueil</button></div>'}
+
 function dessiner(){
-app.innerHTML=etat.vue==="accueil"?accueil():etat.vue==="resultats"?resultats():fiche();
+app.innerHTML=etat.vue==="accueil"?accueil():etat.vue==="resultats"?resultats():etat.vue==="proposer"?proposer():etat.vue==="offre"?confirmationOffre():fiche();
 window.scrollTo(0,0);brancher()}
 
-function chercher(){var v=document.getElementById("q").value;if(!v.trim()){document.getElementById("q").focus();return}etat.requete=v;etat.cat=trouverCat(v);etat.vue="resultats";dessiner()}
+function chercher(){var v=document.getElementById("q").value;if(!v.trim()){document.getElementById("q").focus();return}etat.role="client";etat.requete=v;etat.cat=trouverCat(v);etat.vue="resultats";dessiner()}
 function $(s){return app.querySelectorAll(s)}
 
 function brancher(){
+var ouvrir=document.getElementById("ouvrir-proposition");
+if(ouvrir)ouvrir.onclick=function(){etat.role="prestataire";etat.vue="proposer";dessiner()};
+var form=document.getElementById("form-proposer");
+if(form)form.onsubmit=function(e){e.preventDefault();var d=new FormData(form);etat.role="prestataire";etat.offre={nom:d.get("nom"),categorie:d.get("categorie"),quartier:d.get("quartier"),description:d.get("description"),prix:d.get("prix"),telephone:d.get("telephone")};etat.vue="offre";dessiner()};
+var accueilBtn=document.getElementById("retour-accueil");
+if(accueilBtn)accueilBtn.onclick=function(){etat.role=null;etat.vue="accueil";etat.offre=null;dessiner()};
 var go=document.getElementById("go");
 if(go){go.onclick=chercher;document.getElementById("q").onkeydown=function(e){if(e.key==="Enter")chercher()};
  document.getElementById("geo").onclick=function(){
   if(!navigator.geolocation){etat.pos="📍 Yaoundé centre";dessiner();return}
   navigator.geolocation.getCurrentPosition(function(){etat.pos="📍 Position trouvée";dessiner()},function(){etat.pos="📍 Yaoundé centre";dessiner()},{timeout:8000})}}
-$(".cat").forEach(function(b){b.onclick=function(){var c=CATS.filter(function(x){return x.id===b.dataset.cat})[0];etat.cat=c.id;etat.requete=c.t;etat.vue="resultats";dessiner()}});
+$(".cat").forEach(function(b){b.onclick=function(){var c=CATS.filter(function(x){return x.id===b.dataset.cat})[0];etat.role="client";etat.cat=c.id;etat.requete=c.t;etat.vue="resultats";dessiner()}});
 $(".pastille").forEach(function(b){b.onclick=function(){etat.filtre=b.dataset.f;dessiner()}});
 $(".res").forEach(function(b){b.onclick=function(){etat.fiche=P.filter(function(p){return p.id===b.dataset.p})[0];etat.merci=false;etat.vue="fiche";dessiner()}});
-var r=document.getElementById("retour");if(r)r.onclick=function(){etat.vue=etat.vue==="fiche"?"resultats":"accueil";dessiner()};
-var c=document.getElementById("cmd");if(c)c.onclick=function(){etat.merci=true;var y=window.scrollY;dessiner();window.scrollTo(0,y)};
+var r=document.getElementById("retour");if(r)r.onclick=function(){etat.vue=etat.vue==="fiche"?"resultats":"accueil";if(etat.vue==="accueil")etat.role=null;dessiner()};
+var c=document.getElementById("cmd");if(c)c.onclick=function(){etat.role="client";etat.merci=true;var y=window.scrollY;dessiner();window.scrollTo(0,y)};
 }
 dessiner();
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
