@@ -1,6 +1,6 @@
 // Service worker de Je Falla : garde l'appli en cache pour la connexion lente
-var CACHE = 'jefalla-v1';
-var FICHIERS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+var CACHE = 'jefalla-v2';
+var FICHIERS = ['./', './index.html', './manifest.json', './jf192.png', './jf512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS); }));
