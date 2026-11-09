@@ -94,10 +94,12 @@ button{font:inherit;cursor:pointer;color:inherit}
 .prixbas{flex:none}.prixbas small{display:block;font-size:12px;color:var(--gris)}.prixbas b{font-size:19px;font-weight:900}
 .barre button{flex:1;width:auto;max-width:none;margin:0;min-height:54px;font-size:18px}
 .merci{bottom:96px}
+.mini{border:2px solid var(--texte);background:transparent;color:var(--texte);border-radius:10px;padding:8px 12px;font-weight:800;margin:8px 8px 0 0}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<script src="supabase.js"></script>
 <script>
 // Catégories : « mots » sert à reconnaître ce que l’utilisateur tape
 var CATS=[
@@ -130,7 +132,7 @@ function trouverCat(t){t=t.trim().toLowerCase();if(!t)return null;var c=CATS.fil
 function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")}
 
 function accueil(){
-return '<div class="haut"><div class="logo">Je <b>Falla</b></div><button class="pos" id="geo">'+esc(etat.pos)+'</button></div>'+
+return '<div class="haut"><div class="logo">Je <b>Falla</b></div><span><button class="pos" id="geo">'+esc(etat.pos)+'</button> <button class="pos" id="cpt">'+(sess?"👤 "+esc(prenom()):"👤 Connexion")+'</button></span></div>'+
 '<div class="jaune"><h1>Ça urge ? On trouve.</h1><p>Solutions à moins de 15 minutes autour de toi</p>'+
 '<div class="recherche"><input id="q" placeholder="Je falla... ex: poulet braisé, pressing, plombier" enterkeyhint="search"><button id="go" aria-label="Chercher">🔍</button></div></div>'+
 '<div class="grille">'+CATS.map(function(c){return '<button class="cat" data-cat="'+c.id+'"><span class="i">'+c.i+'</span><span class="t">'+c.t+'</span><span class="s">'+c.s+'</span></button>'}).join("")+'</div>'+
@@ -140,35 +142,35 @@ return '<div class="haut"><div class="logo">Je <b>Falla</b></div><button class="
 function liste(){
 var t=etat.requete.trim().toLowerCase(),l=etat.cat?P.filter(function(p){return p.cat===etat.cat}):P.filter(function(p){return (p.nom+p.desc+p.q).toLowerCase().indexOf(t)>-1});
 if(etat.filtre==="ouvert")l=l.filter(function(p){return p.ouvert});
-l=l.slice().sort(etat.filtre==="prix"?function(a,b){return (a.prix||1e9)-(b.prix||1e9)}:function(a,b){return a.km-b.km});return l}
+var tri=etat.filtre==="prix"?function(a,b){return (a.prix||1e9)-(b.prix||1e9)}:function(a,b){return cle(a)-cle(b)};l=l.slice().sort(function(a,b){return sp(a)===sp(b)?tri(a,b):(sp(a)?-1:1)});return l}
 
 function resultats(){
 var c=CATS.filter(function(x){return x.id===etat.cat})[0],l=liste();
 var F=[["ouvert","Ouvert maintenant"],["prix","Moins cher"],["proche","Le plus proche"]];
 return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>'+(c?c.i+" "+c.t:"« "+esc(etat.requete)+" »")+'</h2><small>Mode client · '+l.length+' solution(s) près de toi</small></div></div>'+
 '<div class="filtres">'+F.map(function(f){return '<button class="pastille'+(etat.filtre===f[0]?" on":"")+'" data-f="'+f[0]+'">'+f[1]+'</button>'}).join("")+'</div><div class="liste">'+
-(l.length?l.map(function(p){return '<button class="res" data-p="'+p.id+'"><div class="av">'+p.e+'</div><div><div class="n">'+p.nom+'</div><div class="m">'+(p.dom?"à domicile":p.km+" km")+' · '+p.min+' min · '+p.q+'</div><div class="p">'+p.px+' · '+p.note.toFixed(1)+'★</div><span class="badge '+(p.ouvert?"ok":"ko")+'">'+p.statut+'</span></div></button>'}).join(""):'<div class="vide"><div style="font-size:40px">🤷🏾</div>Rien trouvé pour « '+esc(etat.requete)+' ». Essaie « pressing », « plombier » ou « poulet braisé ».</div>')+'</div>'}
+(l.length?l.map(function(p){return '<button class="res" data-p="'+p.id+'"><div class="av">'+p.e+'</div><div><div class="n">'+p.nom+'</div><div class="m">'+dk(p)+' · '+p.min+' min · '+p.q+'</div><div class="p">'+p.px+' · '+nt(p)+'</div><span class="badge '+(p.ouvert?"ok":"ko")+'">'+p.statut+'</span></div></button>'}).join(""):'<div class="vide"><div style="font-size:40px">🤷🏾</div>Rien trouvé pour « '+esc(etat.requete)+' ». Essaie « pressing », « plombier » ou « poulet braisé ».</div>')+'</div>'}
 
 function fiche(){
 var p=etat.fiche,msg=encodeURIComponent("Bonjour "+p.nom+", je vous trouve sur Je Falla. J’ai besoin de votre service maintenant.");
-var dist=p.dom?"Vient chez toi":p.km+" km de toi";
+var dist=p.dom?"Vient chez toi":(p.km!=null?p.km+" km de toi":"Yaoundé");
 return '<div class="photo"><button class="retour" id="retour" aria-label="Retour">←</button><span class="gros">'+p.e+'</span></div>'+
 '<div class="fiche"><div class="ligne1"><span class="badge '+(p.ouvert?"ok":"ko")+'">'+p.statut+'</span><span class="tag">⚡ Arrive en '+p.min+' min</span></div>'+
 '<h2>'+p.nom+'</h2><div class="q">📍 '+p.q+', Yaoundé · '+dist+'</div>'+
-'<div class="chiffres"><div><i>⭐</i><b>'+p.note.toFixed(1)+'</b><span>'+p.nb+' avis</span></div><div><i>⏱️</i><b>'+p.min+' min</b><span>arrivée</span></div><div><i>💰</i><b>'+(p.prix?fmt(p.prix)+" F":"Sur place")+'</b><span>'+p.px+'</span></div></div>'+
+'<div class="chiffres"><div><i>⭐</i><b>'+nt(p)+'</b><span>'+p.nb+' avis</span></div><div><i>⏱️</i><b>'+p.min+' min</b><span>arrivée</span></div><div><i>💰</i><b>'+(p.prix?fmt(p.prix)+" F":"Sur place")+'</b><span>'+p.px+'</span></div></div>'+
 '<h3>À propos</h3><p class="desc">'+p.desc+'</p>'+
 '<div class="contact"><a class="b-appel" href="tel:+'+p.tel+'">📞 Appeler</a><a class="b-wa" href="https://wa.me/'+p.tel+'?text='+msg+'" target="_blank" rel="noopener">💬 WhatsApp</a></div>'+
-'<h3>Avis clients <small>'+p.note.toFixed(1)+' ★ · '+p.nb+' avis</small></h3>'+
+'<h3>Avis clients <small>'+(p.nb?p.note.toFixed(1)+' ★ · '+p.nb+' avis':'Aucun avis pour l’instant')+'</small></h3>'+
 p.avis.map(function(a){return '<div class="avis"><div class="ini">'+a[0].charAt(0)+'</div><div><b>'+a[0]+'</b> <span class="etoiles">'+"★".repeat(a[1])+"☆".repeat(5-a[1])+'</span><p>'+a[2]+'</p></div></div>'}).join("")+'</div>'+
 '<div class="barre"><div class="prixbas"><small>'+(p.prix?"à partir de":"")+'</small><b>'+(p.prix?fmt(p.prix)+" FCFA":"Sur place")+'</b></div><button id="cmd">Commander</button></div>'+
-(etat.merci?'<div class="merci">✅ Commande envoyée. '+p.nom+' arrive dans environ '+p.min+' minutes.</div>':"")}
+(etat.merci?'<div class="merci">✅ Demande envoyée. '+p.nom+' va te contacter sur WhatsApp.</div>':"")}
 
 function proposer(){
 return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>＋ Proposer un service</h2><small>Mode prestataire activé pour cette action</small></div></div>'+
-'<div class="role-info">Tu gardes le même compte. Si tu recherches ensuite un service, tu repasseras automatiquement en mode client.</div>'+
+(sess?'':'<div class="role-info">Connecte-toi pour publier ton service. <button class="btn-principal" id="vers-compte">Se connecter</button></div>')+'<div class="role-info">Tu gardes le même compte. Si tu recherches ensuite un service, tu repasseras automatiquement en mode client.</div>'+
 '<form class="form-proposer" id="form-proposer"><h2>Présente ton service</h2><p>Décris ce que tu proposes afin que les personnes puissent te trouver.</p>'+
 '<label class="champ"><span>Nom du service</span><input name="nom" required maxlength="70" placeholder="Ex. Plomberie à domicile"></label>'+
-'<label class="champ"><span>Catégorie</span><select name="categorie" required><option value="">Choisir une catégorie</option><option>Plomberie</option><option>Maçonnerie</option><option>Électricité</option><option>Restauration</option><option>Transport</option><option>Ménage et nettoyage</option><option>Autre</option></select></label>'+
+'<label class="champ"><span>Catégorie</span><select name="categorie" required><option value="">Choisir une catégorie</option>'+CATS.map(function(c){return '<option value="'+c.id+'">'+c.i+' '+c.t+'</option>'}).join("")+'</select></label>'+
 '<label class="champ"><span>Ta ville / ton quartier</span><input name="quartier" required maxlength="80" placeholder="Ex. Yaoundé, Mendong"></label>'+
 '<label class="champ"><span>Description</span><textarea name="description" required maxlength="500" placeholder="Décris ton expérience et le service proposé"></textarea></label>'+
 '<label class="champ"><span>Prix indicatif (FCFA, facultatif)</span><input name="prix" type="number" min="0" placeholder="Ex. 5000"></label>'+
@@ -177,14 +179,48 @@ return '<div class="bandeau"><button class="retour" id="retour" aria-label="Reto
 
 function confirmationOffre(){
 var o=etat.offre;
-return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>Proposition préparée</h2><small>Mode prestataire</small></div></div>'+
+return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>Service publié</h2><small>Mode prestataire</small></div></div>'+
 '<div class="form-proposer"><div style="font-size:42px">✅</div><h2>'+esc(o.nom)+'</h2><p><b>'+esc(o.categorie)+'</b> · '+esc(o.quartier)+'</p><p>'+esc(o.description)+'</p><p>'+(o.prix?fmt(Number(o.prix))+ ' FCFA':'Prix à convenir')+' · '+esc(o.telephone)+'</p>'+
-'<div class="role-info">Ceci est une prévisualisation sur cette version de test. Ton offre n’est pas encore publiée pour les autres utilisateurs : il faudra connecter Je Falla à une base de données et créer les comptes prestataires.</div>'+
+'<div class="role-info">Ton service est publié : les clients peuvent maintenant le trouver. Tu le retrouves dans « Mon espace ».</div>'+
 '<button class="btn-principal" id="retour-accueil">Retour à l’accueil</button></div>'}
 
+
+// ===== Supabase : données, compte, commandes, espace personnel =====
+function sp(p){return !!(p.boost&&new Date(p.boost)>new Date())}
+function cle(p){return p.km==null?p.min:p.km}
+function nt(p){return p.nb?p.note.toFixed(1)+"★":"Nouveau"}
+function dk(p){return p.dom?"à domicile":(p.km!=null?p.km+" km":"Yaoundé")}
+function g(i){return document.getElementById(i)}
+function prenom(){var m=sess&&sess.user&&sess.user.user_metadata;return (m&&m.full_name||"Compte").split(" ")[0]}
+function txt(s){var d=document.createElement("div");d.innerHTML=s;return d.textContent}
+// Catégories et services viennent de la base ; aucun service d’exemple n’est affiché comme réel
+function charger(){return api("/rest/v1/categories?select=*&active=eq.true&order=created_at").then(function(c){if(c&&c.length)CATS=c.map(function(x){var o=CATS.filter(function(y){return y.id===x.slug})[0];return{id:x.slug,i:x.emoji||"📍",t:x.name,s:o?o.s:"Je falla "+x.name.toLowerCase(),m:(x.keywords||[]).concat([x.name.toLowerCase(),x.slug])}})}).catch(function(){}).then(function(){return api("/rest/v1/services?select=*&status=eq.active&order=created_at.desc&limit=100")}).then(function(r){
+P=(r||[]).map(function(s){var c=CATS.filter(function(x){return x.id===s.category})[0],ou=s.is_open!==false;return{id:s.id,db:1,cat:s.category,nom:esc(s.title),q:esc(s.neighborhood||s.city||"Yaoundé"),e:c?c.i:"📍",km:null,min:s.eta_minutes||20,px:s.price?"à partir de "+fmt(Math.round(s.price))+" FCFA":"Prix sur demande",prix:Math.round(s.price||0),note:0,nb:0,ouvert:ou,statut:ou?"OUVERT":"FERMÉ"+(s.opens_at?" · ouvre à "+esc(s.opens_at):""),dom:!!s.at_home,tel:tel(s.contact_phone),desc:esc(s.description||""),avis:[],boost:s.boosted_until}});if(etat.vue==="accueil")dessiner()}).catch(function(){})}
+function compte(){return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>👤 Mon compte</h2></div></div><div class="form-proposer">'+(sess?'<h2>Bonjour '+esc(prenom())+'</h2><p>Un seul compte : tu peux chercher, commander et proposer des services.</p><button class="btn-principal" id="vers-espace">Mon espace</button><button class="btn-principal" id="ouvrir-proposition" style="margin-top:10px">＋ Je propose un service</button><button class="mini" id="deco" style="margin-top:14px">Se déconnecter</button>':'<h2>Connexion</h2><p>Ton numéro de téléphone et un mot de passe suffisent.</p><label class="champ"><span>Téléphone</span><input id="c_tel" type="tel" placeholder="6XXXXXXXX" autocomplete="tel"></label><label class="champ"><span>Mot de passe (6 caractères minimum)</span><input id="c_pw" type="password" autocomplete="current-password"></label><label class="champ"><span>Ton nom (seulement pour créer un compte)</span><input id="c_nom" autocomplete="name"></label><button class="btn-principal" id="c_in">Se connecter</button><button class="btn-principal" id="c_up" style="margin-top:10px">Créer mon compte</button>')+'</div>'}
+var ST={new:"Nouvelle",accepted:"Acceptée",done:"Terminée",cancelled:"Refusée"};
+function espace(){var E=etat.esp||{s:[],r:[],m:[]};
+var ls=E.s.map(function(s){return '<div class="avis"><div><b>'+esc(s.title)+'</b> <small>('+esc(s.status==="active"?"visible":"masqué")+')</small><br><button class="mini" data-sup="'+s.id+'">Supprimer</button></div></div>'}).join("")||"<p>Aucun service pour l’instant.</p>";
+var lr=E.r.map(function(o){var b="";if(o.status==="new")b='<button class="mini" data-o="accepted" data-id="'+o.id+'">Accepter</button><button class="mini" data-o="cancelled" data-id="'+o.id+'">Refuser</button>';else if(o.status==="accepted")b='<button class="mini" data-o="done" data-id="'+o.id+'">Terminer</button>';
+return '<div class="avis"><div><b>'+esc(o.services?o.services.title:"Service")+'</b> · '+ST[o.status]+'<br>Client : <a href="https://wa.me/'+tel(o.customer_phone)+'" target="_blank" rel="noopener">'+esc(o.customer_phone)+'</a><br>'+b+'</div></div>'}).join("")||"<p>Aucune commande reçue.</p>";
+var lm=E.m.map(function(o){return '<div class="avis"><div><b>'+esc(o.services?o.services.title:"Service")+'</b> · '+ST[o.status]+'</div></div>'}).join("")||"<p>Aucune commande passée.</p>";
+return '<div class="bandeau"><button class="retour" id="retour" aria-label="Retour">←</button><div><h2>Mon espace</h2></div></div><div class="form-proposer"><h2>Mes services</h2>'+ls+'<h2 style="margin-top:22px">Commandes reçues</h2>'+lr+'<h2 style="margin-top:22px">Mes commandes</h2>'+lm+'</div>'}
+function chargerEspace(){var u=sess.user.id;return Promise.all([api("/rest/v1/services?select=id,title,status&user_id=eq."+u+"&status=neq.closed&order=created_at.desc"),api("/rest/v1/orders?select=id,status,user_id,customer_phone,created_at,services(title,user_id)&order=created_at.desc&limit=50")]).then(function(a){var o=a[1]||[];etat.esp={s:a[0]||[],r:o.filter(function(x){return x.services&&x.services.user_id===u}),m:o.filter(function(x){return x.user_id===u})}})}
+function ouvrirEspace(){chargerEspace().then(function(){etat.vue="espace";dessiner()}).catch(function(x){alert(x.message)})}
+function commander(){var p=etat.fiche;etat.role="client";var t=prompt("Ton numéro WhatsApp, pour que "+txt(p.nom)+" te réponde :");if(!t)return;
+api("/rest/v1/orders",{method:"POST",prefer:"return=minimal",body:{service_id:p.id,user_id:sess&&sess.user?sess.user.id:null,customer_phone:tel(t),message:"Commande depuis Je Falla"}}).then(function(){etat.merci=true;var y=window.scrollY;dessiner();window.scrollTo(0,y)}).catch(function(x){alert("Demande non envoyée : "+x.message)})}
+function brancher2(){var a=g("cpt");if(a)a.onclick=function(){etat.vue="compte";dessiner()};
+var v=g("vers-compte");if(v)v.onclick=function(){etat.vue="compte";dessiner()};
+var e=g("vers-espace");if(e)e.onclick=ouvrirEspace;
+var d=g("deco");if(d)d.onclick=function(){deconnecter();etat.vue="accueil";dessiner()};
+function ent(up){var n=g("c_tel").value,p=g("c_pw").value,nom=g("c_nom").value.trim();if(tel(n).length<11||p.length<6){alert("Numéro (ex. 6XXXXXXXX) et mot de passe de 6 caractères minimum.");return}if(up&&!nom){alert("Ajoute ton nom pour créer le compte.");return}
+(up?inscrire(n,p,nom):connecter(n,p)).then(function(ok){if(up&&!ok){alert("Compte créé, mais la confirmation par email est active dans Supabase : désactive « Confirm email ».");return}dessiner()}).catch(function(x){alert(x.message)})}
+var i=g("c_in"),u=g("c_up");if(i)i.onclick=function(){ent(false)};if(u)u.onclick=function(){ent(true)};
+$("[data-o]").forEach(function(b){b.onclick=function(){api("/rest/v1/orders?id=eq."+b.dataset.id,{method:"PATCH",prefer:"return=minimal",body:{status:b.dataset.o}}).then(ouvrirEspace).catch(function(x){alert(x.message)})}});
+$("[data-sup]").forEach(function(b){b.onclick=function(){if(!confirm("Supprimer ce service ?"))return;var id=b.dataset.sup;api("/rest/v1/services?id=eq."+id,{method:"DELETE"}).catch(function(){return api("/rest/v1/services?id=eq."+id,{method:"PATCH",prefer:"return=minimal",body:{status:"closed"}})}).then(function(){return charger()}).then(ouvrirEspace).catch(function(x){alert(x.message)})}})}
+
 function dessiner(){
-app.innerHTML=etat.vue==="accueil"?accueil():etat.vue==="resultats"?resultats():etat.vue==="proposer"?proposer():etat.vue==="offre"?confirmationOffre():fiche();
-window.scrollTo(0,0);brancher()}
+app.innerHTML=etat.vue==="compte"?compte():etat.vue==="espace"?espace():etat.vue==="accueil"?accueil():etat.vue==="resultats"?resultats():etat.vue==="proposer"?proposer():etat.vue==="offre"?confirmationOffre():fiche();
+window.scrollTo(0,0);brancher();brancher2()}
 
 function chercher(){var v=document.getElementById("q").value;if(!v.trim()){document.getElementById("q").focus();return}etat.role="client";etat.requete=v;etat.cat=trouverCat(v);etat.vue="resultats";dessiner()}
 function $(s){return app.querySelectorAll(s)}
@@ -193,7 +229,10 @@ function brancher(){
 var ouvrir=document.getElementById("ouvrir-proposition");
 if(ouvrir)ouvrir.onclick=function(){etat.role="prestataire";etat.vue="proposer";dessiner()};
 var form=document.getElementById("form-proposer");
-if(form)form.onsubmit=function(e){e.preventDefault();var d=new FormData(form);etat.role="prestataire";etat.offre={nom:d.get("nom"),categorie:d.get("categorie"),quartier:d.get("quartier"),description:d.get("description"),prix:d.get("prix"),telephone:d.get("telephone")};etat.vue="offre";dessiner()};
+if(form)form.onsubmit=function(e){e.preventDefault();if(!sess){etat.vue="compte";dessiner();return}var d=new FormData(form);etat.role="prestataire";
+var b={user_id:sess.user.id,title:d.get("nom"),category:d.get("categorie"),neighborhood:d.get("quartier"),description:d.get("description"),price:d.get("prix")?Number(d.get("prix")):null,contact_phone:tel(d.get("telephone")),city:"Yaoundé"};
+etat.offre={nom:b.title,categorie:b.category,quartier:b.neighborhood,description:b.description,prix:d.get("prix"),telephone:b.contact_phone};
+api("/rest/v1/services",{method:"POST",prefer:"return=minimal",body:b}).then(function(){return charger()}).then(function(){etat.vue="offre";dessiner()}).catch(function(x){alert("Publication impossible : "+x.message)})};
 var accueilBtn=document.getElementById("retour-accueil");
 if(accueilBtn)accueilBtn.onclick=function(){etat.role=null;etat.vue="accueil";etat.offre=null;dessiner()};
 var go=document.getElementById("go");
@@ -205,9 +244,9 @@ $(".cat").forEach(function(b){b.onclick=function(){var c=CATS.filter(function(x)
 $(".pastille").forEach(function(b){b.onclick=function(){etat.filtre=b.dataset.f;dessiner()}});
 $(".res").forEach(function(b){b.onclick=function(){etat.fiche=P.filter(function(p){return p.id===b.dataset.p})[0];etat.merci=false;etat.vue="fiche";dessiner()}});
 var r=document.getElementById("retour");if(r)r.onclick=function(){etat.vue=etat.vue==="fiche"?"resultats":"accueil";if(etat.vue==="accueil")etat.role=null;dessiner()};
-var c=document.getElementById("cmd");if(c)c.onclick=function(){etat.role="client";etat.merci=true;var y=window.scrollY;dessiner();window.scrollTo(0,y)};
+var c=document.getElementById("cmd");if(c)c.onclick=commander;
 }
-dessiner();
+dessiner();charger();
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 </script>
 </body>

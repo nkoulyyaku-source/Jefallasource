@@ -1,6 +1,6 @@
 // Service worker de Je Falla : garde l'appli en cache pour la connexion lente
-var CACHE = 'jefalla-v3';
-var FICHIERS = ['./', './index.html', './manifest.json', './jf192.png', './jf512.png'];
+var CACHE = 'jefalla-v5';
+var FICHIERS = ['./', './index.html', './manifest.json', './supabase.js', './jf192.png', './jf512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS); }));
@@ -16,7 +16,7 @@ self.addEventListener('activate', function (e) {
 
 // Réseau d'abord (pour avoir les mises à jour), cache si hors ligne
 self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
     fetch(e.request).then(function (rep) {
       var copie = rep.clone();
